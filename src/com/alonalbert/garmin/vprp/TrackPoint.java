@@ -4,7 +4,6 @@ import org.w3c.dom.Element;
 
 import java.io.PrintStream;
 import java.text.ParseException;
-import java.util.Date;
 
 /*
        <Trackpoint>
@@ -17,9 +16,10 @@ import java.util.Date;
          <DistanceMeters>0</DistanceMeters>
        </Trackpoint>
 */
+@SuppressWarnings({"UnusedDeclaration"})
 public class TrackPoint {
 
-  private Date time;
+  private long time;
   private Position position;
   private double altitude;
   private double distance;
@@ -27,7 +27,7 @@ public class TrackPoint {
   public static TrackPoint fromElement(Element point) throws ParseException {
     final Element position = (Element) XmlUtils.getElement(point, "Position");
     return new TrackPoint(
-        XmlUtils.getDateFormat().parse(XmlUtils.getElement(point, "Time").getTextContent()),
+        XmlUtils.parseTime(XmlUtils.getElement(point, "Time").getTextContent()),
         Double.parseDouble(XmlUtils.getElement(position, "LatitudeDegrees").getTextContent()),
         Double.parseDouble(XmlUtils.getElement(position, "LongitudeDegrees").getTextContent()),
         Double.parseDouble(XmlUtils.getElement(point, "AltitudeMeters").getTextContent()),
@@ -35,7 +35,7 @@ public class TrackPoint {
     );
   }
 
-  public TrackPoint(Date time, double latitude, double longitude, double altitude,
+  public TrackPoint(long time, double latitude, double longitude, double altitude,
                     double distance) {
     this.time = time;
     position = new Position(latitude, longitude);
@@ -43,11 +43,11 @@ public class TrackPoint {
     this.distance = distance;
   }
 
-  public Date getTime() {
+  public long getTime() {
     return time;
   }
 
-  public void setTime(Date time) {
+  public void setTime(long time) {
     this.time = time;
   }
 
@@ -75,17 +75,31 @@ public class TrackPoint {
     this.distance = distance;
   }
 
-  public void serialize(PrintStream printStream) {
-    printStream.print("       <Trackpoint>\n");
-    printStream.printf("         <Time>%s</Time>\n", XmlUtils.getDateFormat().format(time));
-    printStream.print("         <Position>\n");
-    printStream
-        .printf("           <LatitudeDegrees>%.6f</LatitudeDegrees>\n", position.getLatitude());
-    printStream
-        .printf("           <LongitudeDegrees>%.6f</LongitudeDegrees>\n", position.getLongitude());
-    printStream.print("         </Position>\n");
-    printStream.printf("         <AltitudeMeters>%.1f</AltitudeMeters>\n", altitude);
-    printStream.printf("         <DistanceMeters>%.12f</DistanceMeters>\n", distance);
-    printStream.print("       </Trackpoint>\n");
+  public void serialize(PrintStream printStream, String prefix) throws ParseException {
+    printStream.print(prefix + "<Trackpoint>\n");
+    printStream.printf(prefix + "  <Time>%s</Time>\n", XmlUtils.formatTime(time));
+    printStream.print(prefix + "  <Position>\n");
+    printStream.printf(
+        prefix + "    <LatitudeDegrees>%.6f</LatitudeDegrees>\n", position.getLatitude());
+    printStream.printf(
+        prefix + "    <LongitudeDegrees>%.6f</LongitudeDegrees>\n", position.getLongitude());
+    printStream.print(prefix + "  </Position>\n");
+    printStream.printf(prefix + "  <AltitudeMeters>%.1f</AltitudeMeters>\n", altitude);
+    printStream.printf(prefix + "  <DistanceMeters>%.12f</DistanceMeters>\n", distance);
+    printStream.print(prefix + "</Trackpoint>\n");
+  }
+
+  @Override
+  public String toString() {
+    return "TrackPoint{" +
+           "time=" + time +
+           ", position=" + position +
+           ", altitude=" + altitude +
+           ", distance=" + distance +
+           '}';
+  }
+
+  public String toCoordinatesString() {
+    return position.toCoordinatesString();
   }
 }

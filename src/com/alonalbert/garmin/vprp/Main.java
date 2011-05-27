@@ -2,16 +2,10 @@ package com.alonalbert.garmin.vprp;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Main {
 
-  static final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
   private static final int SMOOTH = 3;
   private static SpeedInfo[] speedInfos = new SpeedInfo[]{
       new SpeedInfo(25l, -100, -3),
@@ -35,53 +29,53 @@ public class Main {
       // read file
       final String inputFilename = args[0];
       final FileInputStream in = new FileInputStream(inputFilename);
-      final TrainingCenterDatabase database;
+      final TCX database;
       try {
-        database = TrainingCenterDatabase.parse(in);
+        database = TCX.parse(in);
       } finally {
         in.close();
       }
 
-      // correct course points name
-      // also add course points to map for later on
-      final Map<Position, CoursePoint> coursePointByPosition = new HashMap<Position, CoursePoint>();
-      for (CoursePoint point : database.getCoursePoints()) {
-        point.setName(point.getNotes().trim());
-        coursePointByPosition.put(point.getPosition(), point);
-      }
-
-      // correct track points time
-      final List<TrackPoint> trackPoints = database.getTrackPoints();
-
-      final TrackPoint first = trackPoints.get(0);
-      final Date start = first.getTime();
-      first.setTime(start);
-      long totalTime = start.getTime();
-
-      // correct first SMOOTH points first using first average speed
-      int grade = getGrade(trackPoints.get(SMOOTH), first);
-      double speed = getSpeedForGrade(grade);
-      for (int i = 1; i <= SMOOTH; i++) {
-        final TrackPoint point = trackPoints.get(i);
-        totalTime =
-            correctTimeForPoint(point, trackPoints.get(i - 1), speed, totalTime,
-                                coursePointByPosition);
-      }
-
-      //
-      for (int i = SMOOTH + 1, size = trackPoints.size(); i < size; ++i) {
-        final TrackPoint point = trackPoints.get(i);
-        grade = getGrade(point, trackPoints.get(i - SMOOTH));
-        speed = getSpeedForGrade(grade);
-
-        totalTime =
-            correctTimeForPoint(point, trackPoints.get(i - 1), speed, totalTime,
-                                coursePointByPosition);
-      }
-
-      if (!coursePointByPosition.isEmpty()) {
-        throw new IllegalStateException("Not all Course Points corrected.");
-      }
+//      // correct course points name
+//      // also add course points to map for later on
+//      final Map<Position, CoursePoint> coursePointByPosition = new HashMap<Position, CoursePoint>();
+//      for (CoursePoint point : database.getCoursePoints()) {
+//        point.setName(point.getNotes().trim());
+//        coursePointByPosition.put(point.getPosition(), point);
+//      }
+//
+//      // correct track points time
+//      final List<TrackPoint> trackPoints = database.getTrackPoints();
+//
+//      final TrackPoint first = trackPoints.get(0);
+//      final long start = first.getTime();
+//      first.setTime(start);
+//      long totalTime = start;
+//
+//      // correct first SMOOTH points first using first average speed
+//      int grade = getGrade(trackPoints.get(SMOOTH), first);
+//      double speed = getSpeedForGrade(grade);
+//      for (int i = 1; i <= SMOOTH; i++) {
+//        final TrackPoint point = trackPoints.get(i);
+//        totalTime =
+//            correctTimeForPoint(point, trackPoints.get(i - 1), speed, totalTime,
+//                                coursePointByPosition);
+//      }
+//
+//      //
+//      for (int i = SMOOTH + 1, size = trackPoints.size(); i < size; ++i) {
+//        final TrackPoint point = trackPoints.get(i);
+//        grade = getGrade(point, trackPoints.get(i - SMOOTH));
+//        speed = getSpeedForGrade(grade);
+//
+//        totalTime =
+//            correctTimeForPoint(point, trackPoints.get(i - 1), speed, totalTime,
+//                                coursePointByPosition);
+//      }
+//
+//      if (!coursePointByPosition.isEmpty()) {
+//        throw new IllegalStateException("Not all Course Points corrected.");
+//      }
 
       // Write file
       final String outputFilename = inputFilename.replace(".tcx", ".out.tcx");
@@ -105,12 +99,11 @@ public class Main {
     final double distance = getDistance(point, previous);
     final long time = (long) (distance / speed);
     totalTime += time * 1000;
-    final Date newTime = new Date(totalTime);
-    point.setTime(newTime);
+    point.setTime(totalTime);
     final Position position = point.getPosition();
     final CoursePoint coursePoint = coursePointByPosition.get(position);
     if (coursePoint != null) {
-      coursePoint.setTime(newTime);
+      coursePoint.setTime(totalTime);
       coursePointByPosition.remove(position);
     }
     return totalTime;
