@@ -50,4 +50,44 @@ public class Position {
     result = 31 * result + (int) (temp ^ (temp >>> 32));
     return result;
   }
+
+  @Override
+  public String toString() {
+    return "Position{" +
+           "latitude=" + latitude +
+           ", longitude=" + longitude +
+           '}';
+  }
+
+  public double distanceFrom(Position other) {
+    final double theta = longitude - other.longitude;
+    double distance =
+        Math.sin(toRadians(latitude)) * Math.sin(toRadians(other.latitude))
+        + Math.cos(toRadians(latitude)) * Math.cos(toRadians(other.latitude)) * Math.cos(
+            toRadians(theta));
+    distance = Math.acos(distance);
+    distance = toDegrees(distance);
+    distance = distance * 60 * 1.1515 * 1609.344;
+    return (distance);
+  }
+
+  public double getBearing(Position other) {
+    final double deltaLongitude = longitude - other.longitude;
+    final double y = Math.sin(deltaLongitude) * Math.cos(other.latitude);
+    final double x = Math.cos(latitude) * Math.sin(other.latitude) -
+                     Math.sin(latitude) * Math.cos(other.latitude) * Math.cos(deltaLongitude);
+    return toDegrees(Math.atan2(y, x));
+  }
+
+  private double toRadians(double deg) {
+    return (deg * Math.PI / 180.0);
+  }
+
+  private double toDegrees(double rad) {
+    return (rad * 180.0 / Math.PI);
+  }
+
+  public String toCoordinatesString() {
+    return latitude + ", " + longitude;
+  }
 }

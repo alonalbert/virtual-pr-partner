@@ -5,13 +5,16 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -20,78 +23,76 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
-public class TrainingCenterDatabase {
+@SuppressWarnings({"UnusedDeclaration"})
+public class TCX {
 
   private static DocumentBuilder documentBuilder;
   private static XPathFactory xpathFactory = XPathFactory.newInstance();
+  private static Set<String> directions = new HashSet<String>();
+
+  static {
+    directions.add("Left");
+    directions.add("Right");
+    directions.add("Straight");
+  }
 
   private String name;
   private final List<TrackPoint> trackPoints = new ArrayList<TrackPoint>();
   private final List<CoursePoint> coursePoints = new ArrayList<CoursePoint>();
 
-  public static TrainingCenterDatabase parse(InputStream in)
-      throws IOException, SAXException, XPathExpressionException, ParseException {
-    final Document document = getDocumentBuilder().parse(in);
+  public static TCX parse(InputStream in) throws IOException, ParseException {
+    try {
+      final Document document = getDocumentBuilder().parse(in);
 
-    final XPathFactory xPathFactory = getXPathFactory();
+      final XPathFactory xPathFactory = getXPathFactory();
 
-    String name = (String) xPathFactory.newXPath()
-        .compile("/TrainingCenterDatabase/Courses/Course/Name/text()")
-        .evaluate(document, XPathConstants.STRING);
+      String name = (String) xPathFactory.newXPath()
+          .compile("/TrainingCenterDatabase/Courses/Course/Name/text()")
+          .evaluate(document, XPathConstants.STRING);
 
-    final TrainingCenterDatabase database = new TrainingCenterDatabase(name);
+      final TCX database = new TCX(name);
 
-    final NodeList trackPoints = (NodeList) xPathFactory.newXPath()
-        .compile("/TrainingCenterDatabase/Courses/Course/Track/Trackpoint")
-        .evaluate(document, XPathConstants.NODESET);
-    for (int i = 0, length = trackPoints.getLength(); i < length; ++i) {
-      database.getTrackPoints().add(TrackPoint.fromElement((Element) trackPoints.item(i)));
+      NodeList trackPoints = (NodeList) xPathFactory.newXPath()
+          .compile("//Trackpoint")
+          .evaluate(document, XPathConstants.NODESET);
+      for (int i = 0, length = trackPoints.getLength(); i < length; ++i) {
+        database.getTrackPoints().add(TrackPoint.fromElement((Element) trackPoints.item(i)));
+      }
+
+      final NodeList coursePoints = (NodeList) xPathFactory.newXPath()
+          .compile("/TrainingCenterDatabase/Courses/Course/CoursePoint")
+          .evaluate(document, XPathConstants.NODESET);
+      for (int i = 0, length = coursePoints.getLength(); i < length; ++i) {
+        final CoursePoint point = CoursePoint.fromElement((Element) coursePoints.item(i));
+        final String pointName = point.getName();
+        if (pointName.startsWith("-")) {
+          if (!directions.contains(point.getType())) {
+            continue;
+          }
+          point.setName(pointName.substring(1));
+          i++;
+        }
+        database.getCoursePoints().add(point);
+      }
+      return database;
+    } catch (XPathExpressionException e) {
+      throw new RuntimeException(e);
+    } catch (SAXException e) {
+      throw new ParseException(e.getMessage(), 0);
     }
-
-    final NodeList coursePoints = (NodeList) xPathFactory.newXPath()
-        .compile("/TrainingCenterDatabase/Courses/Course/CoursePoint")
-        .evaluate(document, XPathConstants.NODESET);
-    for (int i = 0, length = coursePoints.getLength(); i < length; ++i) {
-      database.getCoursePoints().add(CoursePoint.fromElement((Element) coursePoints.item(i)));
-    }
-    return database;
   }
 
-  /*
-<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase
- xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2
- http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
-<Folders/>
-<Courses>
- <Course>
-   <Name>Eden Southbound</Name>
-   <Lap>
-     <TotalTimeSeconds>487</TotalTimeSeconds>
-     <DistanceMeters>32085.8</DistanceMeters>
-     <BeginPosition>
-       <LatitudeDegrees>37.419571</LatitudeDegrees>
-       <LongitudeDegrees>-122.082958</LongitudeDegrees>
-     </BeginPosition>
-     <EndPosition>
-       <LatitudeDegrees>37.28191</LatitudeDegrees>
-       <LongitudeDegrees>-121.96902</LongitudeDegrees>
-     </EndPosition>
-     <Intensity>Active</Intensity>
-   </Lap>
-   <Track>
-     <Trackpoint>
-     </Trackpoint>
-   </Track>
-   <CoursePoint>
-   </CoursePoint>
- </Course>
-</Courses>
-</TrainingCenterDatabase>
-  */
-  public void serialize(OutputStream out) {
+  public static TCX parse(String filename)
+      throws IOException, ParseException {
+    final FileInputStream in = new FileInputStream(filename);
+    try {
+      return parse(in);
+    } finally {
+      in.close();
+    }
+  }
+
+  public void serialize(OutputStream out) throws ParseException {
     final PrintStream printStream = new PrintStream(out);
 
     printStream.print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -111,7 +112,7 @@ public class TrainingCenterDatabase {
     final TrackPoint lastPoint = trackPoints.get(trackPoints.size() - 1);
 
     printStream.printf("        <TotalTimeSeconds>%d</TotalTimeSeconds>\n",
-                       (lastPoint.getTime().getTime() - firstPoint.getTime().getTime()) / 1000);
+                       (lastPoint.getTime() - firstPoint.getTime()) / 1000);
 
     printStream.printf("        <DistanceMeters>%.1f</DistanceMeters>\n",
                        lastPoint.getDistance() - firstPoint.getDistance());
@@ -132,11 +133,11 @@ public class TrainingCenterDatabase {
     printStream.print("      </Lap>\n");
     printStream.print("      <Track>\n");
     for (TrackPoint point : trackPoints) {
-      point.serialize(printStream);
+      point.serialize(printStream, "        ");
     }
     printStream.print("      </Track>\n");
     for (CoursePoint point : coursePoints) {
-      point.serialize(printStream);
+      point.serialize(printStream, "      ");
     }
     printStream.print("    </Course>\n");
     printStream.print("  </Courses>\n");
@@ -158,7 +159,7 @@ public class TrainingCenterDatabase {
     return documentBuilder;
   }
 
-  public TrainingCenterDatabase(String name) {
+  public TCX(String name) {
     this.name = name;
   }
 
@@ -177,6 +178,4 @@ public class TrainingCenterDatabase {
   public List<CoursePoint> getCoursePoints() {
     return coursePoints;
   }
-
-
 }

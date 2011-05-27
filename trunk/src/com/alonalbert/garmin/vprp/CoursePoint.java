@@ -4,7 +4,6 @@ import org.w3c.dom.Element;
 
 import java.io.PrintStream;
 import java.text.ParseException;
-import java.util.Date;
 
 /*
       <CoursePoint>
@@ -19,10 +18,13 @@ import java.util.Date;
       </CoursePoint>
 
  */
+@SuppressWarnings({"UnusedDeclaration"})
 public class CoursePoint {
 
+  public static final String TYPE_CAT_4 = "4th Category";
+
   private String name;
-  private Date time;
+  private long time;
   private Position position;
   private String type;
   private String notes;
@@ -31,15 +33,15 @@ public class CoursePoint {
     final Element position = (Element) XmlUtils.getElement(point, "Position");
     return new CoursePoint(
         XmlUtils.getElement(point, "Name").getTextContent(),
-        XmlUtils.getDateFormat().parse(XmlUtils.getElement(point, "Time").getTextContent()),
+        XmlUtils.parseTime(XmlUtils.getElement(point, "Time").getTextContent()),
         Double.parseDouble(XmlUtils.getElement(position, "LatitudeDegrees").getTextContent()),
         Double.parseDouble(XmlUtils.getElement(position, "LongitudeDegrees").getTextContent()),
         XmlUtils.getElement(point, "PointType").getTextContent(),
-        XmlUtils.getElement(point, "Notes").getTextContent()
+        XmlUtils.getText(XmlUtils.getElement(point, "Notes"))
     );
   }
 
-  public CoursePoint(String name, Date time, double latitude, double longitude, String type,
+  public CoursePoint(String name, long time, double latitude, double longitude, String type,
                      String notes) {
     this.name = name;
     this.time = time;
@@ -56,11 +58,11 @@ public class CoursePoint {
     this.name = name;
   }
 
-  public Date getTime() {
+  public long getTime() {
     return time;
   }
 
-  public void setTime(Date time) {
+  public void setTime(long time) {
     this.time = time;
   }
 
@@ -88,18 +90,32 @@ public class CoursePoint {
     this.notes = notes;
   }
 
-  public void serialize(PrintStream printStream) {
-    printStream.print("      <CoursePoint>\n");
-    printStream.printf("        <Name>%s</Name>\n", name);
-    printStream.printf("        <Time>%s</Time>\n", XmlUtils.getDateFormat().format(time));
-    printStream.printf("        <Position>\n");
+  public void serialize(PrintStream printStream, String prefix) throws ParseException {
+    printStream.print(prefix + "<CoursePoint>\n");
+    printStream.printf(prefix + "  <Name>%s</Name>\n", name);
+    printStream.printf(prefix + "  <Time>%s</Time>\n", XmlUtils.formatTime(time));
+    printStream.printf(prefix + "  <Position>\n");
     printStream
-        .printf("          <LatitudeDegrees>%.6f</LatitudeDegrees>\n", position.getLatitude());
+        .printf(prefix + "    <LatitudeDegrees>%.6f</LatitudeDegrees>\n", position.getLatitude());
     printStream
-        .printf("          <LongitudeDegrees>%.6f</LongitudeDegrees>\n", position.getLongitude());
-    printStream.printf("        </Position>\n");
-    printStream.printf("        <PointType>%s</PointType>\n", type);
-    printStream.printf("        <Notes>%s</Notes>\n", notes);
-    printStream.print("      </CoursePoint>\n");
+        .printf(prefix + "    <LongitudeDegrees>%.6f</LongitudeDegrees>\n",
+                position.getLongitude());
+    printStream.printf(prefix + "  </Position>\n");
+    printStream.printf(prefix + "  <PointType>%s</PointType>\n", type);
+    if (notes != null) {
+      printStream.printf(prefix + "  <Notes>%s</Notes>\n", notes);
+    }
+    printStream.print(prefix + "</CoursePoint>\n");
+  }
+
+  @Override
+  public String toString() {
+    return "CoursePoint{" +
+           "name='" + name + '\'' +
+           ", time=" + time +
+           ", position=" + position +
+           ", type='" + type + '\'' +
+           ", notes='" + notes + '\'' +
+           '}';
   }
 }
