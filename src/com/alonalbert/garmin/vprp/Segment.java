@@ -6,21 +6,33 @@ package com.alonalbert.garmin.vprp;
  */
 public class Segment {
 
-  private final CoursePoint start;
-  private final CoursePoint end;
+  private final Position start;
+  private final Position end;
 
-  public Segment(CoursePoint start, CoursePoint end) {
+  private final int startIndex;
+  private final int endIndex;
 
+  public Segment(Position start, Position end, int startIndex, int endIndex) {
     this.start = start;
     this.end = end;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
   }
 
-  public CoursePoint getStart() {
+  public Position getStart() {
     return start;
   }
 
-  public CoursePoint getEnd() {
+  public Position getEnd() {
     return end;
+  }
+
+  public int getStartIndex() {
+    return startIndex;
+  }
+
+  public int getEndIndex() {
+    return endIndex;
   }
 
   @Override
@@ -28,6 +40,12 @@ public class Segment {
     return "Segment{" +
            "start=" + start +
            ", end=" + end +
+           ", startIndex=" + startIndex +
+           ", endIndex=" + endIndex +
            '}';
+  }
+
+  public String toCoordinateString() {
+    return start.toCoordinatesString() + "\n" + end.toCoordinatesString();
   }
 }

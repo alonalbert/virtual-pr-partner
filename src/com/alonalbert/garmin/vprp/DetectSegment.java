@@ -10,43 +10,57 @@ import java.util.List;
  */
 public class DetectSegment {
 
+  private final TCX course;
+  private final List<Segment> segments;
+
   public static void main(String[] args) {
     try {
       final TCX course = TCX.parse("eden.tcx");
       final TCX track = TCX.parse("eden-ride.tcx");
 
-      final List<Segment> segments = getSegments(course);
-//      for (Segment segment : segments) {
-//        detectSegment(segment, track.getTrackPoints());
-//      }
-      findSegmentMatches(segments, track.getTrackPoints());
+      final DetectSegment detector = new DetectSegment(course);
+      detector.findSegmentMatches(track.getTrackPoints());
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
 
-  private static int findSegmentMatches(List<Segment> segments, List<TrackPoint> points) {
+  public DetectSegment(TCX course) throws Exception {
+    this.course = course;
+
+    segments = findSegments();
+    for (Segment segment : segments) {
+      System.out.println(segment.toCoordinateString());
+    }
+  }
+
+
+  private int findSegmentMatches(List<TrackPoint> points) {
     final int size = points.size();
-    for (int i = 0; i < size; i += 50) {
+    for (int i = 0; i < size; i += 1) {
       TrackPoint point = points.get(i);
       for (Segment segment : segments) {
-        final double distance = segment.getStart().getPosition().distanceFrom(point.getPosition());
+        //Segment segment = segments.get(0);
+        final Position startPosition = segment.getStart();
+        final double distance = startPosition.distanceFrom(point.getPosition());
         if (distance > 100) {
           continue;
         }
-        System.out.println("Found start");
-        final int first = findClosestPoint(segment.getStart().getPosition(), points, i);
-        final int last = findClosestPoint(segment.getEnd().getPosition(), points, first + 1);
-        i = last + 1;
+
+        final int first = findClosestPoint(startPosition, points, i);
+        final int last = findClosestPoint(segment.getEnd(), points, first + 1);
+        System.out.printf("Found segment from point %d to %d\n", first, last);
+        i = last;
       }
     }
     return size;
   }
 
-  private static void detectSegment(Segment segment, List<TrackPoint> points)
+
+  private void detectSegment(Segment segment, List<TrackPoint> points)
       throws ParseException {
-    final int first = findClosestPoint(segment.getStart().getPosition(), points, 0);
-    final int last = findClosestPoint(segment.getEnd().getPosition(), points, first + 1);
+    final int first = findClosestPoint(segment.getStart(), points, 0);
+    final int last = findClosestPoint(segment.getEnd(), points, first + 1);
 
     System.out.println(last - first);
 //    for (int i = first; i < last; ++i) {
@@ -58,7 +72,11 @@ public class DetectSegment {
   private static int findClosestPoint(Position position, List<TrackPoint> points, int start) {
     double minDistance = Double.MAX_VALUE;
     final int size = points.size();
-    for (int i = start; i < size; i++) {
+    int i = start;
+    while (i < size && position.distanceFrom(points.get(i).getPosition()) > 100) {
+      i++;
+    }
+    while (i < size) {
       final double distance = position.distanceFrom(points.get(i).getPosition());
       if (distance > minDistance) {
         return i - 1;
@@ -66,28 +84,64 @@ public class DetectSegment {
       minDistance = distance;
       i++;
     }
-    return size;
+    return -1;
   }
 
-  private static List<Segment> getSegments(TCX course) throws Exception {
+  private List<Segment> findSegments() throws Exception {
     final List<Segment> segments = new ArrayList<Segment>();
     final List<CoursePoint> coursePoints = course.getCoursePoints();
+    final List<TrackPoint> trackPoints = course.getTrackPoints();
+
+    int firstIndex = -1;
+    Position firstPosition = trackPoints.get(0).getPosition();
+
     for (int i = 0, size = coursePoints.size(); i < size; i++) {
       CoursePoint point = coursePoints.get(i);
 
-      if (point.getType().equals(CoursePoint.TYPE_CAT_4)) {
-        final CoursePoint start = point;
+      if (point.getType().endsWith(CoursePoint.CATEGORY_SUFFIX)) {
+        segments.add(new Segment(firstPosition, point.getPosition(), firstIndex, i));
+        firstIndex = i;
+        final CoursePoint firstPoint = point;
         point = coursePoints.get(++i);
-        while (!point.getType().equals(start.getType())) {
+        while (!point.getType().equals(firstPoint.getType())) {
           i++;
           if (i >= size) {
-            throw new Exception("No match found for " + start);
+            throw new Exception("No match found for " + firstPoint);
           }
           point = coursePoints.get(i);
         }
-        segments.add(new Segment(start, point));
+        segments.add(new Segment(
+            coursePoints.get(firstIndex).getPosition(), point.getPosition(), firstIndex, i));
+        firstIndex = i;
+        firstPosition = coursePoints.get(firstIndex).getPosition();
       }
     }
+    segments.add(new Segment(
+        firstPosition, trackPoints.get(trackPoints.size() - 1).getPosition(), firstIndex, -1));
     return segments;
   }
+
+//  private static List<Segment> getSegments2(TCX course) throws Exception {
+//    final List<Segment> segments = new ArrayList<Segment>();
+//    final List<CoursePoint> coursePoints = course.getCoursePoints();
+//
+//    for (int i = 0, size = coursePoints.size(); i < size; i++) {
+//      CoursePoint point = coursePoints.get(i);
+//
+//      if (point.getType().equals(CoursePoint.CATEGORY_SUFFIX)) {
+//        final int first = i;
+//        final CoursePoint start = point;
+//        point = coursePoints.get(++i);
+//        while (!point.getType().equals(start.getType())) {
+//          i++;
+//          if (i >= size) {
+//            throw new Exception("No match found for " + start);
+//          }
+//          point = coursePoints.get(i);
+//        }
+//        segments.add(new Segment(first, i));
+//      }
+//    }
+//    return segments;
+//  }
 }

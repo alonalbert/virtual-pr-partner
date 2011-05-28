@@ -21,7 +21,7 @@ import java.text.ParseException;
 @SuppressWarnings({"UnusedDeclaration"})
 public class CoursePoint {
 
-  public static final String TYPE_CAT_4 = "4th Category";
+  public static final String CATEGORY_SUFFIX = " Category";
 
   private String name;
   private long time;
